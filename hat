@@ -1,0 +1,210 @@
+#!/bin/bash
+# hat: connect to, control, and download footage from the RAIA Labs recording hat (macOS).
+# Run `./hat help` for commands. Every command is non-interactive except `ssh` with no arguments.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB="$ROOT/lib"
+STATE="$ROOT/.hat"
+BRIDGE="$ROOT/rndis-mac/target/release/rndis-up"
+NETWORK_JSON="$STATE/network.json"
+PY="${PYTHON:-python3}"
+PASSWORD_FILE="$STATE/password"   # hat login password, stored locally only (git-ignored)
+PEER="192.168.77.2"      # hat's address over USB (the bridge's DHCP hands it this)
+HOST_IP="192.168.77.1"   # Mac's address on the USB link
+USB_VID=2207; USB_PID=0019
+export HAT_STATE="$STATE" HAT_PEER="$PEER" HAT_OUT="${HAT_OUT:-$ROOT/captures}"
+mkdir -p "$STATE"
+
+die()  { echo "error: $*" >&2; exit 1; }
+load_password() {
+  if [ -z "${HAT_PASSWORD:-}" ] && [ -s "$PASSWORD_FILE" ]; then HAT_PASSWORD=$(cat "$PASSWORD_FILE"); fi
+  [ -n "${HAT_PASSWORD:-}" ] || die "Hat password not set. Ask the RAIA team for it, then run: ./hat password"
+  export HAT_PASSWORD
+}
+sq()   { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }   # single-quote for a remote shell
+
+ssh_hat() {
+  SSH_ASKPASS="$LIB/askpass.sh" SSH_ASKPASS_REQUIRE=force DISPLAY=hat /usr/bin/ssh \
+    -o NumberOfPasswordPrompts=1 -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+    -o ConnectTimeout=8 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
+    -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$STATE/known_hosts" -o LogLevel=ERROR \
+    "$@" "cat@$PEER"
+}
+# Run a shell command on the hat as root (password piped to sudo; command must not read stdin).
+hat_sudo() { printf '%s\n' "$HAT_PASSWORD" | ssh_hat -T "sudo -S -p '' sh -c $(sq "$1")"; }
+
+# Run a command as root on the Mac: sudo if possible, otherwise a macOS password dialog (works for agents).
+mac_root() {
+  if sudo -n true 2>/dev/null; then sudo /bin/sh -c "$1"
+  elif [ -t 0 ]; then echo "Your Mac login password is needed to create the USB network interface."; sudo /bin/sh -c "$1"
+  else
+    local esc; esc=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    osascript -e "do shell script \"$esc\" with administrator privileges" >/dev/null \
+      || die "Mac admin password was not given. Run './hat connect' yourself in Terminal."
+  fi
+}
+
+bridge_pid() { [ -f "$STATE/bridge.pid" ] && cat "$STATE/bridge.pid" || true; }
+bridge_running() {
+  local pid; pid=$(bridge_pid)
+  [ -n "$pid" ] && ps -p "$pid" -o args= 2>/dev/null | grep -q rndis-up
+}
+hat_reachable() { nc -z -G 3 "$PEER" 22 >/dev/null 2>&1; }
+require_link() {
+  load_password
+  bridge_running || die "Not connected. Run: ./hat connect"
+  hat_reachable  || die "Bridge is up but the hat's SSH (port 22) isn't answering. Wait ~10 s, or run: ./hat disconnect && ./hat connect"
+}
+
+cmd_setup() {
+  [ "$(uname)" = Darwin ] || die "This tool is for macOS. (Linux/Windows have native RNDIS but are untested.)"
+  command -v "$PY" >/dev/null || die "python3 not found. Install it: brew install python"
+  if ! command -v brew >/dev/null; then
+    die "Homebrew is needed: https://brew.sh"
+  fi
+  [ -e /opt/homebrew/lib/libusb-1.0.dylib ] || [ -e /usr/local/lib/libusb-1.0.dylib ] || brew install libusb
+  local cargo; cargo=$(command -v cargo || true)
+  [ -z "$cargo" ] && [ -x "$HOME/.cargo/bin/cargo" ] && cargo="$HOME/.cargo/bin/cargo"
+  if [ -z "$cargo" ]; then brew install rust; cargo=$(command -v cargo); fi
+  echo "Building the USB bridge (first time takes ~1 min)..."
+  (cd "$ROOT/rndis-mac" && "$cargo" build --release --bin rndis-up)
+  [ -x "$BRIDGE" ] || die "Bridge build failed."
+  echo "SETUP OK"
+}
+
+cmd_connect() {
+  if bridge_running; then echo "Bridge already running (pid $(bridge_pid))."; cmd_status; return; fi
+  [ -x "$BRIDGE" ] || cmd_setup
+  echo "Probing the hat over USB..."
+  "$PY" -u "$LIB/probe_hat.py" "$NETWORK_JSON"
+  [ -f "$NETWORK_JSON" ] || die "USB probe found no hat address."
+  local host_mac
+  host_mac=$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["host_mac"])' "$NETWORK_JSON")
+  rm -f "$STATE/bridge.log" "$STATE/bridge.pid"
+  local q_bridge q_log q_pid
+  q_bridge=$(sq "$BRIDGE"); q_log=$(sq "$STATE/bridge.log"); q_pid=$(sq "$STATE/bridge.pid")
+  echo "Starting the USB network bridge (needs Mac admin password)..."
+  mac_root "nohup $q_bridge --vid $USB_VID --pid $USB_PID --host-ip $HOST_IP --peer-ip $PEER --host-mac $host_mac > $q_log 2>&1 < /dev/null & echo \$! > $q_pid"
+  for _ in $(seq 1 20); do grep -q '^configured ' "$STATE/bridge.log" 2>/dev/null && break; sleep 1; done
+  grep -q '^configured ' "$STATE/bridge.log" 2>/dev/null || { cat "$STATE/bridge.log" 2>/dev/null; die "Bridge did not come up."; }
+  echo "Bridge up. Waiting for the hat's SSH..."
+  for _ in $(seq 1 30); do hat_reachable && break; sleep 1; done
+  hat_reachable || die "Bridge is up but the hat isn't answering on $PEER:22 yet. Retry './hat status' in a few seconds."
+  echo "CONNECTED cat@$PEER"
+  cmd_status
+}
+
+cmd_disconnect() {
+  local pid; pid=$(bridge_pid)
+  if bridge_running; then mac_root "kill $pid"; echo "Bridge stopped."; else echo "Bridge was not running."; fi
+  rm -f "$STATE/bridge.pid"
+}
+
+cmd_status() {
+  if bridge_running; then echo "bridge:     running (pid $(bridge_pid))"; else echo "bridge:     not running"; fi
+  if hat_reachable; then
+    echo "hat ssh:    reachable at cat@$PEER"
+    load_password
+    hat_sudo 'r=$(/opt/device_scripts/lsrecord.sh 2>/dev/null); [ "$r" = 1 ] && echo "recording:  YES (stop with the hat switch before downloading)" || echo "recording:  no"
+              df -h /data | awk "NR==2{print \"free space: \" \$4 \" of \" \$2 \" (hat auto-stops below 2 GB)\"}"
+              echo "hat clock:  $(date) (often wrong; do not trust filename dates)"'
+  else
+    echo "hat ssh:    not reachable"
+  fi
+}
+
+LIST_CODE='import glob,os,re,subprocess
+ps=subprocess.check_output(["ps","-eo","args"]).decode(errors="replace")
+s={}
+for p in sorted(glob.glob("/data/*")):
+    b=os.path.basename(p); m=re.match(r"([0-9A-Za-z]+_\d{8}_\d{6})",b)
+    k=m.group(1) if m else b; e=s.setdefault(k,[0,0,0,0]); e[1]+=os.path.getsize(p)
+    e[0]+=b.endswith(".mp4"); e[2]=max(e[2],os.path.getmtime(p))
+    e[3]=e[3] or ("/data/"+k+"_" in ps and "gst-launch" in ps)
+if not s: print("(no recordings on the hat)")
+for k,(n,z,t,rec) in sorted(s.items(),key=lambda kv:kv[1][2]):
+    print("%s  %d video segment(s)  %8.1f MiB%s" % (k,n,z/1048576.0,"  [RECORDING]" if rec else ""))'
+
+cmd_list() { require_link; hat_sudo "python3 -c $(sq "$LIST_CODE")"; }
+
+cmd_download() {
+  require_link
+  if [ "${1:-}" = "--all" ]; then
+    local s rc=0
+    for s in $(hat_sudo "python3 -c $(sq "$LIST_CODE")" | awk '$2 ~ /^[0-9]+$/ && !/RECORDING/ {print $1}'); do
+      if [ -f "$HAT_OUT/$s/manifest.json" ]; then echo "skip $s (already downloaded)"; continue; fi
+      "$PY" -u "$LIB/download_capture.py" "$s" || rc=1
+    done
+    return $rc
+  fi
+  "$PY" -u "$LIB/download_capture.py" ${1:+"$1"}
+}
+
+cmd_delete() {
+  local s="${1:-}"
+  [[ "$s" =~ ^[0-9A-Za-z]+_[0-9]{8}_[0-9]{6}$ ]] || die "usage: ./hat delete <session>   (see ./hat list)"
+  require_link
+  # Safety: only delete if a verified local copy exists with every file at the right size.
+  local m="$HAT_OUT/$s/manifest.json"
+  [ -f "$m" ] || die "No verified local copy at $HAT_OUT/$s. Run './hat download $s' first."
+  "$PY" - "$m" <<'PY' || die "Local copy is incomplete; not deleting."
+import json,os,sys
+m=json.load(open(sys.argv[1])); d=os.path.dirname(sys.argv[1])
+bad=[f['local'] for f in m['files'] if not os.path.isfile(os.path.join(d,f['local'])) or os.path.getsize(os.path.join(d,f['local']))!=f['size']]
+sys.exit(1 if bad else 0)
+PY
+  hat_sudo "if ps -eo args | grep gst-launch | grep -q '/data/${s}_'; then echo 'still recording; not deleting' >&2; exit 1; fi; rm -v /data/${s}_*.mp4 /data/${s}.bin /data/${s}.txt2 /data/${s}.txt 2>/dev/null; true"
+  echo "DELETED $s from the hat (local copy kept at $HAT_OUT/$s)"
+}
+
+cmd_ssh() {
+  require_link
+  if [ $# -eq 0 ]; then ssh_hat -t; else ssh_hat -T "$*"; fi
+}
+
+cmd_password() {
+  local pw="${1:-}"
+  if [ -z "$pw" ]; then
+    [ -t 0 ] || die "usage: ./hat password <password>"
+    printf 'Hat password (input hidden): '; read -rs pw; echo
+  fi
+  [ -n "$pw" ] || die "Empty password."
+  ( umask 077; printf '%s' "$pw" > "$PASSWORD_FILE" )
+  echo "Saved to .hat/password (local only, never committed)."
+}
+
+cmd_help() {
+  cat <<EOF
+Usage: ./hat <command>
+
+  password [PW]      Save the hat login password locally (ask the RAIA team for it)
+  setup              Install deps (libusb, rust via Homebrew) and build the USB bridge
+  connect            Plug hat in via USB, then run this. Starts the bridge in the background
+  status             Bridge state, whether the hat is recording, free space
+  list               Recording sessions on the hat
+  download [SESSION] Copy + SHA-256 verify a session to ./captures/<SESSION>/ (default: newest)
+  download --all     Download every stopped session not already downloaded
+  delete SESSION     Remove a session from the hat (only if a verified local copy exists)
+  ssh [CMD]          SSH into the hat (cat@$PEER), or run CMD there
+  sudo CMD           Run CMD on the hat as root
+  inspect            Print a hardware/software report of the hat
+  disconnect         Stop the USB bridge
+EOF
+}
+
+case "${1:-help}" in
+  setup) cmd_setup ;;
+  password) shift; cmd_password "$@" ;;
+  connect) cmd_connect ;;
+  disconnect) cmd_disconnect ;;
+  status) cmd_status ;;
+  list|ls) cmd_list ;;
+  download|dl) shift; cmd_download "$@" ;;
+  delete|rm) shift; cmd_delete "$@" ;;
+  ssh) shift; cmd_ssh "$@" ;;
+  sudo) shift; require_link; hat_sudo "$*" ;;
+  inspect) require_link; ssh_hat -T 'sh -s' < "$LIB/inspect-device.sh" ;;
+  help|-h|--help) cmd_help ;;
+  *) cmd_help; exit 1 ;;
+esac

@@ -1,0 +1,98 @@
+diff --git a/src/bin/up.rs b/src/bin/up.rs
+index 9481c66..387c3a0 100644
+--- a/src/bin/up.rs
++++ b/src/bin/up.rs
+@@ -285,6 +285,11 @@ fn handle_eth_in(
+             }
+         }
+         0x0800 => {
++            if let Some(reply) = rndis_mac::dhcp::reply(f, host_ip, peer_ip, host_mac) {
++                s.send_eth(&reply)?;
++                eprintln!("[answered USB peer DHCP]");
++                return Ok(());
++            }
+             let payload = &f[14..];
+             utun.write_packet(AF_INET, payload)?;
+             // Opportunistically learn peer MAC from any IPv4 frame.
+diff --git a/src/lib.rs b/src/lib.rs
+index 4e63cb1..f607e2c 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -7,3 +7,5 @@
+ pub mod rndis;
+ pub mod session;
+ pub mod utun;
++
++pub mod dhcp;
+diff --git a/src/session.rs b/src/session.rs
+index d233712..ad66f03 100644
+--- a/src/session.rs
++++ b/src/session.rs
+@@ -9,7 +9,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
+ 
+ const COMM_IFACE: u8 = 0;
+ const DATA_IFACE: u8 = 1;
+-const NOTIFY_EP: u8 = 0x84;
+ const BULK_IN: u8 = 0x81;
+ const BULK_OUT: u8 = 0x01;
+ const BULK_BUF: usize = 16 * 1024;
+@@ -29,7 +28,7 @@ impl Session {
+             .find(|d| d.vendor_id() == vid && d.product_id() == pid)
+             .ok_or_else(|| anyhow!("device {vid:04x}:{pid:04x} not found"))?;
+         let dev = info.open()?;
+-        let _ = dev.set_configuration(1);
++        // Keep the existing USB configuration and DHCP lease intact.
+         let comm = dev.claim_interface(COMM_IFACE).context("claim comm iface")?;
+         let data = dev.claim_interface(DATA_IFACE).context("claim data iface")?;
+ 
+@@ -77,42 +76,19 @@ impl Session {
+         Ok(r)
+     }
+ 
+-    fn wait_response_available(&self) -> Result<()> {
+-        let mut q = self.comm.interrupt_in_queue(NOTIFY_EP);
+-        q.submit(RequestBuffer::new(8));
+-        let data = futures_lite::future::block_on(q.next_complete())
+-            .into_result()
+-            .context("interrupt IN")?;
+-        if data.len() < 4 {
+-            bail!("notify too short");
+-        }
+-        let kind = u32::from_le_bytes(data[0..4].try_into().unwrap());
+-        if kind != 0x0000_0001 {
+-            bail!("unexpected notify 0x{kind:08x}");
+-        }
+-        Ok(())
+-    }
+-
+     fn round_trip(&self, msg: &[u8]) -> Result<Vec<u8>> {
+         self.send_command(msg)?;
+-        // Drain any unsolicited INDICATE_STATUS frames first.
+-        loop {
+-            self.wait_response_available()?;
++        let expected_id = msg.get(8..12);
++        // Poll EP0: Rockchip uses a different notification endpoint layout.
++        for _ in 0..40 {
++            std::thread::sleep(std::time::Duration::from_millis(50));
+             let r = self.get_response()?;
+-            if r.len() >= 4 {
+-                let mt = u32::from_le_bytes(r[0..4].try_into().unwrap());
+-                if mt == rndis::MSG_INDICATE {
+-                    let status = if r.len() >= 12 {
+-                        u32::from_le_bytes(r[8..12].try_into().unwrap())
+-                    } else {
+-                        0
+-                    };
+-                    eprintln!("[indicate-status 0x{status:08x}]");
+-                    continue;
+-                }
+-            }
++            if r.len() < 12 { continue; }
++            let mt = u32::from_le_bytes(r[0..4].try_into().unwrap());
++            if mt == rndis::MSG_INDICATE || r.get(8..12) != expected_id { continue; }
+             return Ok(r);
+         }
++        bail!("timed out waiting for matching RNDIS control response")
+     }
+ 
+     /// Drain any queued encapsulated responses left over from a prior session.
