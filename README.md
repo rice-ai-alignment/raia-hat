@@ -43,7 +43,7 @@ Tips:
 |---|---|
 | `./hat password [PW]` | Saves the hat password locally. Run it once. |
 | `./hat setup` | Installs the dependencies and builds the USB bridge. Run it once. |
-| `./hat connect` | Starts the USB network link in the background. The hat appears at `192.168.77.2`. |
+| `./hat connect` | Starts the USB network link in the background. The hat appears at `192.168.77.2`. While it runs, unplugging and replugging the hat reconnects on its own, without the Mac password. |
 | `./hat status` | Shows whether the link is up, whether the hat is recording, and how much space is free |
 | `./hat list` | Lists the recording sessions on the hat |
 | `./hat download [SESSION]` | Copies a session and checks every file by SHA-256. The default is the newest session. |
@@ -77,7 +77,9 @@ The stereo pair **isn't calibrated yet**: the lens intrinsics and the distance b
 
 The hat's USB port acts as a network adapter of a type called RNDIS. macOS has no RNDIS driver anymore, so `rndis-mac/` contains a userspace bridge. It is a patched copy of [Zorglub51/rndis-mac](https://github.com/Zorglub51/rndis-mac) (MIT); `rndis-mac/HAT_PATCH.diff` shows the changes. The patch adds a small DHCP responder that gives the hat the IP address `192.168.77.2`. The Mac uses `192.168.77.1`. The bridge needs administrator rights only to create its network interface.
 
-Runtime state, such as the bridge PID, logs, and the hat's SSH host key, is stored in `.hat/`, which git ignores.
+The bridge exits whenever the hat is unplugged, so `./hat connect` runs it in a loop that restarts it, and replugging reconnects without asking for the password again. `./hat disconnect` stops the loop. Because the loop runs as root, it runs a root-owned copy of the bridge from `/var/run/raia-hat/` and writes its log and PID there, so nothing running as your user can change what root executes.
+
+Runtime state, such as the hat's SSH host key, is stored in `.hat/`, which git ignores. `.hat/bridge.log` and `.hat/bridge.pid` are links to the files in `/var/run/raia-hat/`.
 
 ## Troubleshooting
 
@@ -85,6 +87,7 @@ Runtime state, such as the bridge PID, logs, and the hat's SSH host key, is stor
 |---|---|
 | `Hat not found on USB` | Make sure the hat is on, then replug it. Use a **data** cable, not a charge-only one. |
 | `Bridge is up but the hat's SSH isn't answering` | Wait about 10 seconds and run `./hat status`. If it still fails, run `./hat disconnect && ./hat connect`. |
+| `kex_exchange_identification: read: Connection reset by peer` | The hat's SSH server drops some new connections. Run the command again; it usually works within a few tries. |
 | `STILL_RECORDING` | Flip the switch to stop, wait a few seconds, and retry. |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | You're using a different hat, or the hat was re-flashed. Run `rm .hat/known_hosts`. |
 | A copy drops partway through | The script retries 6 times. If it still fails, run `./hat disconnect && ./hat connect` and download again. Downloads that already finished are skipped. |
@@ -92,3 +95,34 @@ Runtime state, such as the bridge PID, logs, and the hat's SSH host key, is stor
 | Recording stopped by itself | There's less than 2 GB free. Download, then use `./hat delete`. |
 
 Only macOS has been tested. Linux and Windows have native RNDIS drivers but need a DHCP server on the USB interface that gives the hat `192.168.77.2`.
+
+## Evaluating vision models on the footage
+
+`eval/` scores how well a vision-language model (Gemini, for now) understands hat footage, against ground truth you write by hand. Each clip lives in `data/<clip>/` and is listed in `eval/clips.json`:
+
+```
+data/test-1/
+  test-1.mp4      the clip (git-ignored)
+  humans.csv      every person: when they appear and leave (method in humans.md)
+  rubric.md       objects every 10 s, question checks, and category weights
+```
+
+| Command | What it does |
+|---|---|
+| `python3 eval/vlm_eval.py test-1` | People: asks about one frame per second whether anyone is visible and how many, then scores against `humans.csv` |
+| `python3 eval/rubric_eval.py test-1` | Rubric: object lists, question checks, and the weighted scorecard; a second model grades the answers |
+| `python3 eval/vlm_eval.py test-1 --score-only` | Re-scores saved answers after you edit the labels, without calling the model |
+| `python3 eval/label_server.py test-1` | A local page for marking when people are visible, if you want to label a clip by hand |
+
+Add `--model <id>` to test another Gemini model. The key goes in `.env.local` as `GEMINI_KEY=...` (git-ignored). On the free tier each model gets 20 requests a day, so frames are sent in batches (`--batch`); answers are cached under `eval/out/`, so a run that hits the daily limit picks up where it stopped. Write-ups go in `eval/reports/`, starting with [`2026-11-16-test-1.md`](eval/reports/2026-11-16-test-1.md).
+
+## Project stages
+
+The long-term goal is to track how construction work progresses from walkthroughs filmed with the hat. Each stage builds on the one before.
+
+| Stage | Status | Question | Write-up |
+|---|---|---|---|
+| **1. Can a vision model see what the hat sees?** | Done, Nov 16, 2026 | Does an off-the-shelf model find the people and objects in hat footage? | [One-page summary (PDF)](eval/reports/2026-11-16-test-1.pdf) · [full report](eval/reports/2026-11-16-test-1.md) |
+| 2. Track individuals | Next | Does each person keep one identity from entry to exit, and across clips? | – |
+| 3. Measure the space | Later | With calibrated cameras, how far away are things, and where was each frame taken? | – |
+| 4. Track construction progress | Goal | Walking the same site repeatedly, what was installed, moved, or finished in each area? | – |

@@ -24,12 +24,14 @@ load_password() {
 }
 sq()   { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }   # single-quote for a remote shell
 
+# usage: ssh_hat -t|-T [REMOTE_CMD]   (the destination must come before the remote command)
 ssh_hat() {
+  local tty_flag="$1"; shift
   SSH_ASKPASS="$LIB/askpass.sh" SSH_ASKPASS_REQUIRE=force DISPLAY=hat /usr/bin/ssh \
     -o NumberOfPasswordPrompts=1 -o PreferredAuthentications=password -o PubkeyAuthentication=no \
     -o ConnectTimeout=8 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
     -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$STATE/known_hosts" -o LogLevel=ERROR \
-    "$@" "cat@$PEER"
+    "$tty_flag" "cat@$PEER" "$@"
 }
 # Run a shell command on the hat as root (password piped to sudo; command must not read stdin).
 hat_sudo() { printf '%s\n' "$HAT_PASSWORD" | ssh_hat -T "sudo -S -p '' sh -c $(sq "$1")"; }
@@ -81,11 +83,22 @@ cmd_connect() {
   [ -f "$NETWORK_JSON" ] || die "USB probe found no hat address."
   local host_mac
   host_mac=$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["host_mac"])' "$NETWORK_JSON")
+  # Root only runs and writes inside $RUN_DIR (root-owned). It runs a root-owned copy of the bridge,
+  # so nothing running as you can swap the binary root executes, and it never writes into .hat/
+  # (a user-writable folder, where a symlink could redirect root's writes). .hat/bridge.log and
+  # .hat/bridge.pid are just links to the root-owned files.
+  local RUN_DIR=/var/run/raia-hat
   rm -f "$STATE/bridge.log" "$STATE/bridge.pid"
-  local q_bridge q_log q_pid
-  q_bridge=$(sq "$BRIDGE"); q_log=$(sq "$STATE/bridge.log"); q_pid=$(sq "$STATE/bridge.pid")
+  ln -s "$RUN_DIR/bridge.log" "$STATE/bridge.log"
+  ln -s "$RUN_DIR/bridge.pid" "$STATE/bridge.pid"
+  local q_bridge; q_bridge=$(sq "$BRIDGE")
   echo "Starting the USB network bridge (needs Mac admin password)..."
-  mac_root "nohup $q_bridge --vid $USB_VID --pid $USB_PID --host-ip $HOST_IP --peer-ip $PEER --host-mac $host_mac > $q_log 2>&1 < /dev/null & echo \$! > $q_pid"
+  # trap '' HUP instead of nohup: macOS nohup exits with "can't detach from console" when run via
+  # the osascript admin dialog (the agent path), so the bridge never started.
+  # rndis-up exits whenever the hat is unplugged (it expects launchd to restart it), so keep it in a
+  # restart loop: replugging the hat then reconnects without asking for the Mac password again.
+  # `./hat disconnect` sends TERM to the loop, which stops the current bridge and exits.
+  mac_root "mkdir -p $RUN_DIR && chown root:wheel $RUN_DIR && chmod 755 $RUN_DIR && install -o root -g wheel -m 755 $q_bridge $RUN_DIR/rndis-up && rm -f $RUN_DIR/bridge.log $RUN_DIR/bridge.pid || exit 1; trap '' HUP; ( trap 'kill \$c 2>/dev/null; exit 0' TERM; while :; do $RUN_DIR/rndis-up --vid $USB_VID --pid $USB_PID --host-ip $HOST_IP --peer-ip $PEER --host-mac $host_mac & c=\$!; wait \$c; echo 'bridge exited; restarting (replug the hat to reconnect)'; sleep 2 & wait \$!; done ) > $RUN_DIR/bridge.log 2>&1 < /dev/null & echo \$! > $RUN_DIR/bridge.pid"
   for _ in $(seq 1 20); do grep -q '^configured ' "$STATE/bridge.log" 2>/dev/null && break; sleep 1; done
   grep -q '^configured ' "$STATE/bridge.log" 2>/dev/null || { cat "$STATE/bridge.log" 2>/dev/null; die "Bridge did not come up."; }
   echo "Bridge up. Waiting for the hat's SSH..."

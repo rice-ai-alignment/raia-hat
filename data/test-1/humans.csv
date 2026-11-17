@@ -1,0 +1,33 @@
+label,description,scene,appears_s,leaves_s,appears_ts,leaves_ts,end_reason,notes
+human1,"Seated man, white top, window table",cafeteria,0.00,3.50,0:00.00,0:03.50,exits frame,"In frame at video start; intermittent at top edge while camera tilts down"
+human2,"Diner in dark hoodie, front table",cafeteria,4.00,6.00,0:04.00,0:06.00,exits frame,
+human3,"Diner in cap, same table as human2",cafeteria,4.25,6.00,0:04.25,0:06.00,exits frame,
+human4,"Man in light sweater with laptop",cafeteria,4.25,7.00,0:04.25,0:07.00,exits frame,
+human5,"Woman with curly dark hair, laptop",cafeteria,4.25,7.25,0:04.25,0:07.25,exits frame,
+human6,"Person in all black, walks to Farmer's Fridge",cafeteria,4.50,10.50,0:04.50,0:10.50,occluded,"Goes behind the Farmer's Fridge kiosk"
+human7,"Woman in blue hoodie, eating",cafeteria,4.50,10.75,0:04.50,0:10.75,exits frame,
+human8,"Dark-haired woman eating with human7",cafeteria,4.75,10.75,0:04.75,0:10.75,exits frame,
+human9,"Woman in light jacket",outdoor covered walkway,38.25,42.75,0:38.25,0:42.75,passes camera,"First seen far away"
+human10,"Woman in grey jacket, white pants",outdoor covered walkway,38.25,43.00,0:38.25,0:43.00,passes camera,"Walking with human9"
+human11,"Man with scooter",outdoor covered walkway,45.75,54.25,0:45.75,0:54.25,passes camera,"First seen far away"
+human12,"Woman in light top",outdoor covered walkway,45.75,54.25,0:45.75,0:54.25,passes camera,"Walking with human11"
+human13,"Woman with long dark hair, green jacket",outdoor covered walkway,45.75,55.50,0:45.75,0:55.50,passes camera,"Walking with human11"
+human14,"Person in dark clothes",outdoor covered walkway,54.00,65.75,0:54.00,1:05.75,passes camera,"Passes on the right"
+human15,"Person in grey jacket with backpack",outdoor,82.25,87.75,1:22.25,1:27.75,exits frame,"Crosses road first; hidden behind pillar ~84-85s"
+human16,"Man in dark jacket and jeans",outdoor path,90.00,95.50,1:30.00,1:35.50,passes camera,"First seen far away"
+human17,"Man walking with human16",outdoor path,90.00,95.50,1:30.00,1:35.50,passes camera,
+human18,"Runner in pink shirt",outdoor path,94.00,99.25,1:34.00,1:39.25,passes camera,"First seen far away"
+human19,"Woman in dark jacket",outdoor path,106.75,111.25,1:46.75,1:51.25,passes camera,
+human20,"Woman in white sweatshirt",outdoor path,106.75,111.50,1:46.75,1:51.50,passes camera,"Walking with human19"
+human21,"Person in dark clothes, left side",outdoor path,111.75,119.00,1:51.75,1:59.00,exits frame,"Out of view ~114-118s; counted as one person"
+human22,"Woman in white top with backpack",outdoor path,112.75,118.00,1:52.75,1:58.00,passes camera,
+human23,"Person in the arcade",arcade,155.50,159.00,2:35.50,2:39.00,exits frame,"Small figure at far end of arcade"
+human24,"Person in grey jacket with backpack",outdoor path,178.00,183.00,2:58.00,3:03.00,passes camera,"First seen far away"
+human25,"Person in white tee and jeans",outdoor path,184.50,192.50,3:04.50,3:12.50,passes camera,"First seen far away"
+human26,"Man in black shirt carrying a bag",outdoor path,228.25,249.00,3:48.25,4:09.00,passes camera,"Distant speck for most of span; intermittent"
+human27,"Person crossing on the right",outdoor path,233.50,236.25,3:53.50,3:56.25,occluded,"Goes behind bushes"
+human28,"Woman in white",outdoor path,272.00,280.75,4:32.00,4:40.75,passes camera,"Appear time approximate (distant)"
+human29,"Person in dark hoodie",outdoor path,272.00,280.50,4:32.00,4:40.50,passes camera,"Appear time approximate (distant)"
+human30,"Man in white top, grey beanie, black backpack",outdoor path,279.25,300.00,4:39.25,5:00.00,video ends,"Overtakes camera from behind; still in frame at end"
+human31,"Scooter rider",outdoor path,281.25,282.50,4:41.25,4:42.50,passes camera,
+human32,"Person in grey jacket",outdoor path,284.50,289.25,4:44.50,4:49.25,passes camera,"Passes on the right"
