@@ -18,7 +18,7 @@ When a download succeeds, the last line printed is `DOWNLOADED <path>`. Report t
 ## Things that need the human
 
 - **Plugging in.** If `connect` prints `Hat not found on USB`, ask the user to power on the hat and plug it in with a USB *data* cable, then retry.
-- **Mac admin password.** `./hat connect` needs root to create a network interface. If it can't use `sudo` without a password, it opens a macOS password dialog. Tell the user to watch for the dialog. If they cancel it or no GUI is available, ask them to run `./hat connect` in their own terminal. In Claude Code they can type `! ./hat connect`.
+- **Mac admin password.** `./hat connect` needs root to create a network interface. If it can't use `sudo` without a password, it opens a macOS password dialog. Tell the user to watch for the dialog. If they cancel it or no GUI is available, ask them to run `./hat connect` in their own terminal. In Claude Code they can type `! ./hat connect`. Once the bridge is running, unplugging and replugging the hat reconnects on its own, so don't run `connect` again (and trigger another password dialog) unless `./hat status` says the bridge is not running.
 - **Stopping a recording.** If download prints `STILL_RECORDING`, the user has to flip the physical switch on the hat. You cannot stop a recording remotely, and you must not kill the recorder process.
 
 ## Rules
@@ -27,7 +27,8 @@ When a download succeeds, the last line printed is `DOWNLOADED <path>`. Report t
 - Do not stop, restart, or reconfigure `video-recorder.service` or anything in `/opt/device_scripts` on the hat.
 - Credentials: the user is `cat`. The password is **not** in this repo. If a command prints `Hat password not set`, ask the user for it, then run `./hat password '<password>'`. That saves it to `.hat/password`, which git ignores. Never write the password into any tracked file, commit, or message.
 - The hat's clock is wrong. Do not infer real recording dates from session names; use the order of the sessions instead.
-- `.hat/` contains runtime state: `bridge.log`, `bridge.pid`, `network.json`, and `known_hosts`. Read `.hat/bridge.log` first when debugging the link.
+- `.hat/` contains runtime state: `bridge.log`, `bridge.pid`, `network.json`, and `known_hosts`. Read `.hat/bridge.log` first when debugging the link. `bridge.log` and `bridge.pid` are links to root-owned files in `/var/run/raia-hat/`, where root runs its own copy of the bridge. Keep it that way: root must never execute or write a file the user account can modify.
+- The hat's SSH server drops some new connections (`kex_exchange_identification: read: Connection reset by peer`). Retry the command a few times before treating the link as broken.
 
 ## Useful facts
 

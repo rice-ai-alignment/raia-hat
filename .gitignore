@@ -4,3 +4,4 @@ rndis-mac/target/
 .DS_Store
 __pycache__/
 *.partial
+.env*
