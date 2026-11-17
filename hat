@@ -24,15 +24,33 @@ load_password() {
 }
 sq()   { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }   # single-quote for a remote shell
 
+# Small algorithm list keeps the key-exchange packet small (full-size frames were lossy over the
+# USB bridge). The hat's sshd still resets some new connections at random; hat_sudo retries those.
+# ssh_hat [-flags...] [remote command]: leading dash-args are ssh flags, the rest is the remote command.
 ssh_hat() {
+  local flags=()
+  while [ $# -gt 0 ] && [ "${1#-}" != "$1" ]; do flags+=("$1"); shift; done
   SSH_ASKPASS="$LIB/askpass.sh" SSH_ASKPASS_REQUIRE=force DISPLAY=hat /usr/bin/ssh \
     -o NumberOfPasswordPrompts=1 -o PreferredAuthentications=password -o PubkeyAuthentication=no \
     -o ConnectTimeout=8 -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
     -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$STATE/known_hosts" -o LogLevel=ERROR \
-    "$@" "cat@$PEER"
+    -o KexAlgorithms=curve25519-sha256@libssh.org -o HostKeyAlgorithms=ssh-ed25519 -o Ciphers=aes128-ctr -o MACs=hmac-sha2-256 \
+    ${flags[@]+"${flags[@]}"} "cat@$PEER" "$@"
 }
 # Run a shell command on the hat as root (password piped to sudo; command must not read stdin).
-hat_sudo() { printf '%s\n' "$HAT_PASSWORD" | ssh_hat -T "sudo -S -p '' sh -c $(sq "$1")"; }
+# The hat's sshd sometimes resets new connections before the banner; retry those (exit 255) only.
+hat_sudo() {
+  local err="$STATE/ssh.err" rc
+  for attempt in 1 2 3 4 5 6; do
+    rc=0
+    printf '%s\n' "$HAT_PASSWORD" | ssh_hat -T "sudo -S -p '' sh -c $(sq "$1")" 2>"$err" || rc=$?
+    if [ $rc -eq 255 ] && grep -qE 'kex_exchange_identification|Connection reset|Connection closed' "$err"; then
+      sleep 2; continue
+    fi
+    cat "$err" >&2; return $rc
+  done
+  cat "$err" >&2; return $rc
+}
 
 # Run a command as root on the Mac: sudo if possible, otherwise a macOS password dialog (works for agents).
 mac_root() {
@@ -85,7 +103,7 @@ cmd_connect() {
   local q_bridge q_log q_pid
   q_bridge=$(sq "$BRIDGE"); q_log=$(sq "$STATE/bridge.log"); q_pid=$(sq "$STATE/bridge.pid")
   echo "Starting the USB network bridge (needs Mac admin password)..."
-  mac_root "nohup $q_bridge --vid $USB_VID --pid $USB_PID --host-ip $HOST_IP --peer-ip $PEER --host-mac $host_mac > $q_log 2>&1 < /dev/null & echo \$! > $q_pid"
+  mac_root "$q_bridge --vid $USB_VID --pid $USB_PID --host-ip $HOST_IP --peer-ip $PEER --host-mac $host_mac > $q_log 2>&1 < /dev/null & echo \$! > $q_pid"
   for _ in $(seq 1 20); do grep -q '^configured ' "$STATE/bridge.log" 2>/dev/null && break; sleep 1; done
   grep -q '^configured ' "$STATE/bridge.log" 2>/dev/null || { cat "$STATE/bridge.log" 2>/dev/null; die "Bridge did not come up."; }
   echo "Bridge up. Waiting for the hat's SSH..."

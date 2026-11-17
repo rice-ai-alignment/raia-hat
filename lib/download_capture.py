@@ -23,6 +23,8 @@ env = dict(os.environ, SSH_ASKPASS=str(lib / 'askpass.sh'), SSH_ASKPASS_REQUIRE=
 ssh = ['/usr/bin/ssh', '-T', '-o', 'NumberOfPasswordPrompts=1', '-o', 'PreferredAuthentications=password',
        '-o', 'PubkeyAuthentication=no', '-o', 'ConnectTimeout=8', '-o', 'ServerAliveInterval=5',
        '-o', 'ServerAliveCountMax=3', '-o', 'StrictHostKeyChecking=accept-new', '-o', 'LogLevel=ERROR',
+       '-o', 'KexAlgorithms=curve25519-sha256@libssh.org', '-o', 'HostKeyAlgorithms=ssh-ed25519',
+       '-o', 'Ciphers=aes128-ctr', '-o', 'MACs=hmac-sha2-256',
        '-o', f'UserKnownHostsFile={state}/known_hosts', f'cat@{peer}']
 
 # Runs on the hat (as root): pick the session, refuse if still recording, hash every file.
