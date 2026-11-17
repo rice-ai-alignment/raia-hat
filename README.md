@@ -115,3 +115,14 @@ data/test-1/
 | `python3 eval/label_server.py test-1` | A local page for marking when people are visible, if you want to label a clip by hand |
 
 Add `--model <id>` to test another Gemini model. The key goes in `.env.local` as `GEMINI_KEY=...` (git-ignored). On the free tier each model gets 20 requests a day, so frames are sent in batches (`--batch`); answers are cached under `eval/out/`, so a run that hits the daily limit picks up where it stopped. Write-ups go in `eval/reports/`, starting with [`2026-11-16-test-1.md`](eval/reports/2026-11-16-test-1.md).
+
+## Project stages
+
+The long-term goal is to track how construction work progresses from walkthroughs filmed with the hat. Each stage builds on the one before.
+
+| Stage | Status | Question | Write-up |
+|---|---|---|---|
+| **1. Can a vision model see what the hat sees?** | Done, Nov 16, 2026 | Does an off-the-shelf model find the people and objects in hat footage? | [One-page summary (PDF)](eval/reports/2026-11-16-test-1.pdf) · [full report](eval/reports/2026-11-16-test-1.md) |
+| 2. Track individuals | Next | Does each person keep one identity from entry to exit, and across clips? | – |
+| 3. Measure the space | Later | With calibrated cameras, how far away are things, and where was each frame taken? | – |
+| 4. Track construction progress | Goal | Walking the same site repeatedly, what was installed, moved, or finished in each area? | – |
