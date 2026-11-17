@@ -1,0 +1,63 @@
+{
+  "clip": "test-1",
+  "model": "gemini-3.5-flash",
+  "model_versions": [
+    "gemini-3.6-flash"
+  ],
+  "eye": "left",
+  "every_s": 1.0,
+  "frames_per_request": 25,
+  "edge_s": 0.25,
+  "media_resolution": null,
+  "thinking": null,
+  "labels": {
+    "source": "data/test-1/humans.csv",
+    "complete": true
+  },
+  "frames": {
+    "total": 300,
+    "answered": 300,
+    "failed": 0,
+    "scored": 258,
+    "not_scored": {
+      "uncertain": 28,
+      "edge": 14
+    }
+  },
+  "presence": {
+    "tp": 92,
+    "fp": 30,
+    "fn": 2,
+    "tn": 134,
+    "precision": 0.7541,
+    "recall": 0.9787,
+    "f1": 0.8518,
+    "accuracy": 0.876,
+    "false_alarm_rate": 0.1829
+  },
+  "count": {
+    "frames": 80,
+    "exact": 0.7125,
+    "within_1": 1.0,
+    "mean_abs_error": 0.2875,
+    "mean_bias": 0.1625
+  },
+  "episodes": {
+    "total": 13,
+    "sampled": 13,
+    "seen": 13,
+    "recall": 1.0
+  },
+  "people_seen_when_alone": {
+    "people": 9,
+    "seen": 9
+  },
+  "usage_tokens": {
+    "promptTokenCount": 333276,
+    "candidatesTokenCount": 13484,
+    "thoughtsTokenCount": 32018,
+    "totalTokenCount": 378778
+  },
+  "mean_latency_s": 38.8275,
+  "prompt": "These 25 images are separate frames from a camera worn on the head (a first-person view), each taken at a different moment. Judge each frame on its own.\n\nFor each frame: is at least one person visible?\n- Count any real person, or any visible part of one (head, torso, legs, an arm), even if they are small, far away, partly hidden, blurry, or seen through glass.\n- Do not count the camera wearer's own body: their hands, arms, legs or feet near the bottom edge of the frame.\n- Do not count people who appear only in posters, photos, screens, statues or mirror reflections.\n\nAnswer in JSON with one entry per frame, using the frame numbers shown."
+}

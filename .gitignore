@@ -5,3 +5,5 @@ rndis-mac/target/
 __pycache__/
 *.partial
 .env*
+*.mp4
+eval/out/*/frames-*/

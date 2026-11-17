@@ -95,3 +95,23 @@ Runtime state, such as the hat's SSH host key, is stored in `.hat/`, which git i
 | Recording stopped by itself | There's less than 2 GB free. Download, then use `./hat delete`. |
 
 Only macOS has been tested. Linux and Windows have native RNDIS drivers but need a DHCP server on the USB interface that gives the hat `192.168.77.2`.
+
+## Evaluating vision models on the footage
+
+`eval/` scores how well a vision-language model (Gemini, for now) understands hat footage, against ground truth you write by hand. Each clip lives in `data/<clip>/` and is listed in `eval/clips.json`:
+
+```
+data/test-1/
+  test-1.mp4      the clip (git-ignored)
+  humans.csv      every person: when they appear and leave (method in humans.md)
+  rubric.md       objects every 10 s, question checks, and category weights
+```
+
+| Command | What it does |
+|---|---|
+| `python3 eval/vlm_eval.py test-1` | People: asks about one frame per second whether anyone is visible and how many, then scores against `humans.csv` |
+| `python3 eval/rubric_eval.py test-1` | Rubric: object lists, question checks, and the weighted scorecard; a second model grades the answers |
+| `python3 eval/vlm_eval.py test-1 --score-only` | Re-scores saved answers after you edit the labels, without calling the model |
+| `python3 eval/label_server.py test-1` | A local page for marking when people are visible, if you want to label a clip by hand |
+
+Add `--model <id>` to test another Gemini model. The key goes in `.env.local` as `GEMINI_KEY=...` (git-ignored). On the free tier each model gets 20 requests a day, so frames are sent in batches (`--batch`); answers are cached under `eval/out/`, so a run that hits the daily limit picks up where it stopped. Write-ups go in `eval/reports/`, starting with [`2026-11-16-test-1.md`](eval/reports/2026-11-16-test-1.md).

@@ -1,0 +1,9 @@
+{
+  "test-1": {
+    "video": "data/test-1/test-1.mp4",
+    "hat_file": "/data/19166522959_20260907_121843_00005.mp4 (session 19166522959_20260907_121843, segment 5)",
+    "humans": "data/test-1/humans.csv",
+    "rubric": "data/test-1/rubric.md",
+    "labeled_eye": "left"
+  }
+}

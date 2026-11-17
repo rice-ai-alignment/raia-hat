@@ -36,3 +36,13 @@ When a download succeeds, the last line printed is `DOWNLOADED <path>`. Report t
 - Recordings live in `/data/` on the hat, owned by root. Each session has `<id>_<YYYYMMDD>_<HHMMSS>_NNNNN.mp4` (5-minute segments), `<session>.bin` (IMU), and `<session>.txt2` (timestamps).
 - Video is 3840×1080 side-by-side stereo HEVC at 30 fps. Left eye is `crop=1920:1080:0:0` and right eye is `crop=1920:1080:1920:0`.
 - Run root commands on the hat with `./hat sudo '<cmd>'`. Other useful checks: `/opt/device_scripts/lsrecord.sh` prints 1 while recording, and `df -h /data` shows free space.
+
+## Evals (`eval/`)
+
+These score a vision-language model on hat footage against hand-written ground truth. See the README section "Evaluating vision models on the footage" and the reports in `eval/reports/`.
+
+- Clips are registered in `eval/clips.json`. Each clip's files are in `data/<clip>/`: the video (git-ignored), `humans.csv` (people ground truth), and `rubric.md` (objects, question checks, category weights).
+- `data/<clip>/humans.csv` and `rubric.md` are the user's ground truth. Don't edit them unless the user asks. Propose label fixes in a separate file instead.
+- Run `python3 eval/vlm_eval.py <clip>` for people and `python3 eval/rubric_eval.py <clip>` for the rubric. After editing labels, re-score with `--score-only` (people) or rerun the rubric eval; both reuse cached answers in `eval/out/` and make no new model calls.
+- The Gemini key is `GEMINI_KEY` in `.env.local` (git-ignored, mode 600). Never print it or commit it.
+- The key is on the free tier: 20 requests per model per day, and no quota at all for the Pro models. The scripts batch frames to fit and stop cleanly when a daily quota runs out. Rerun the same command after the reset (midnight Pacific) to continue. Ask before switching to a setup that costs money.

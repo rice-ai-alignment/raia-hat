@@ -1,0 +1,116 @@
+{
+  "clip": "test-1",
+  "model": "gemini-3.5-flash",
+  "judge": "gemini-3.1-flash-lite",
+  "eye": "left",
+  "points": 78.96,
+  "covered_weight": 85,
+  "total_weight": 100,
+  "categories": [
+    {
+      "name": "Object identification",
+      "weight": 25,
+      "score": 0.9186111111111112,
+      "evidence": [
+        {
+          "name": "object recall over 30 timestamps",
+          "value": 0.8372222222222223
+        },
+        {
+          "name": "Eval 1: Object identification",
+          "value": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Person detection and counting",
+      "weight": 15,
+      "score": 0.8547666666666668,
+      "evidence": [
+        {
+          "name": "people eval: presence F1",
+          "value": 0.8518
+        },
+        {
+          "name": "people eval: exact count rate",
+          "value": 0.7125
+        },
+        {
+          "name": "Eval 2: Person detection",
+          "value": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Spatial reasoning",
+      "weight": 20,
+      "score": 1.0,
+      "evidence": [
+        {
+          "name": "Eval 3: Spatial reasoning",
+          "value": 1.0
+        },
+        {
+          "name": "Eval 5: Grounded spatial description",
+          "value": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Temporal reasoning",
+      "weight": 15,
+      "score": 1.0,
+      "evidence": [
+        {
+          "name": "Eval 4: Temporal reasoning",
+          "value": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Distance estimation",
+      "weight": 15,
+      "score": null,
+      "evidence": []
+    },
+    {
+      "name": "Uncertainty and hallucination",
+      "weight": 10,
+      "score": 0.8170999999999999,
+      "evidence": [
+        {
+          "name": "people eval: 1 \u2212 false alarm rate",
+          "value": 0.8170999999999999
+        }
+      ]
+    }
+  ],
+  "object_recall": 0.8372222222222223,
+  "evals": [
+    {
+      "id": "eval1",
+      "points": 10.0,
+      "of": 10.0
+    },
+    {
+      "id": "eval2",
+      "points": 10.0,
+      "of": 10.0
+    },
+    {
+      "id": "eval3",
+      "points": 10.0,
+      "of": 10.0
+    },
+    {
+      "id": "eval4",
+      "points": 10.0,
+      "of": 10.0
+    },
+    {
+      "id": "eval5",
+      "points": 10.0,
+      "of": 10.0
+    }
+  ]
+}
