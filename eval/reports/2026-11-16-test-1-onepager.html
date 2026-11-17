@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hat VLM Eval: test-1</title>
+<style>
+  @page { size: letter; margin: 0.42in 0.5in 0.34in; }
+  :root {
+    --ink: #15181d; --muted: #5d6672; --line: #e2e5ea; --tile: #f4f5f7;
+    --accent: #c2410c; --accent-soft: #fff1e8; --done: #15803d; --done-soft: #e8f6ed;
+    --next: #1d4ed8; --next-soft: #e8efff; --later: #6b7280; --later-soft: #f0f1f3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font: 9.4pt/1.38 "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ink); }
+  .eyebrow { font-size: 7.6pt; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  h1 { font-size: 19pt; line-height: 1.15; margin: 3pt 0 3pt; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 8.8pt; }
+  h2 { font-size: 10.2pt; margin: 0 0 4pt; padding-bottom: 2.5pt; border-bottom: 1.4pt solid var(--ink); }
+  b { font-weight: 700; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7pt; margin: 10pt 0 11pt; }
+  .kpi { background: var(--tile); border-radius: 5pt; padding: 7pt 9pt 7pt; }
+  .kpi .v { font-size: 19pt; font-weight: 750; letter-spacing: -.02em; line-height: 1.05; }
+  .kpi .k { font-weight: 700; font-size: 8.6pt; margin-top: 2pt; }
+  .kpi .d { color: var(--muted); font-size: 7.8pt; line-height: 1.3; }
+  .cols { display: grid; grid-template-columns: 1.08fr 1fr; gap: 16pt; }
+  section { margin-bottom: 9.5pt; }
+  .cols > div > section:last-child { margin-bottom: 0; }
+  ul { padding-left: 11pt; } li { margin: 0 0 3pt; }
+  .flow { display: flex; align-items: stretch; gap: 0; margin: 2pt 0 1pt; }
+  .step { flex: 1; border: 1pt solid var(--line); border-radius: 4pt; padding: 4pt 5pt; background: #fff; }
+  .step .t { font-weight: 700; font-size: 8.3pt; }
+  .step .s { color: var(--muted); font-size: 7.2pt; line-height: 1.25; }
+  .arrow { width: 9pt; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 9pt; }
+  .finding { display: grid; grid-template-columns: 13pt 1fr; gap: 0 4pt; margin-bottom: 4.5pt; }
+  .num { width: 13pt; height: 13pt; border-radius: 50%; background: var(--ink); color: #fff; font-size: 7.4pt; font-weight: 700;
+         display: flex; align-items: center; justify-content: center; margin-top: 1pt; }
+  figure { margin: 3pt 0 0; }
+  figure img { width: 100%; display: block; border-radius: 4pt; }
+  figcaption { color: var(--muted); font-size: 7.3pt; line-height: 1.3; margin-top: 2.5pt; }
+  .goal { background: var(--accent-soft); border-left: 3pt solid var(--accent); border-radius: 3pt; padding: 5pt 8pt; margin-bottom: 7pt; font-size: 8.8pt; }
+  .ladder { list-style: none; padding: 0; }
+  .ladder li { display: grid; grid-template-columns: 46pt 1fr; gap: 6pt; margin-bottom: 6.5pt; }
+  .chip { font-size: 6.9pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; text-align: center;
+          border-radius: 3pt; padding: 2.5pt 0; height: fit-content; margin-top: 1pt; }
+  .chip.done { color: var(--done); background: var(--done-soft); }
+  .chip.next { color: var(--next); background: var(--next-soft); }
+  .chip.later { color: var(--later); background: var(--later-soft); }
+  .ladder .t { font-weight: 700; }
+  .ladder .s { color: #2c323a; font-size: 8.6pt; }
+  .limits { background: var(--tile); border-radius: 4pt; padding: 5.5pt 8pt; font-size: 8pt; color: #333a43; }
+  .limits b { color: var(--ink); }
+  footer { margin-top: 8pt; padding-top: 5pt; border-top: 1pt solid var(--line); color: var(--muted); font-size: 7.5pt;
+           display: flex; justify-content: space-between; gap: 12pt; }
+  code { font-family: Menlo, monospace; font-size: 7.4pt; }
+</style>
+</head>
+<body>
+
+<div class="eyebrow">RAIA Labs · Recording hat · Eval 1</div>
+<h1>Can a vision model see what the hat sees?</h1>
+<div class="sub">Clip <b>test-1</b> (5-minute campus walk at dusk) &nbsp;·&nbsp; Nov 16, 2026 &nbsp;·&nbsp; <b>gemini-3.5-flash</b>, graded by <b>gemini-3.1-flash-lite</b></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="v">98%</div><div class="k">People caught</div><div class="d">said “someone is here” on 92 of 94 labeled frames</div></div>
+  <div class="kpi"><div class="v">13 / 13</div><div class="k">Groups of people</div><div class="d">every stretch with people in view was caught</div></div>
+  <div class="kpi"><div class="v">±1</div><div class="k">Head count</div><div class="d">always within one person; exact 71% of the time</div></div>
+  <div class="kpi"><div class="v">84%</div><div class="k">Objects named</div><div class="d">123 of 147 annotated objects; all&nbsp;5 questions right</div></div>
+</div>
+
+<div class="cols">
+  <div>
+    <section>
+      <h2>What we did</h2>
+      <ul>
+        <li><b>Got footage off the hat</b> over USB and fixed the Mac link: it reconnects after an unplug, and root never runs files a user can edit.</li>
+        <li><b>Wrote ground truth</b> for test-1: 32 people with enter and exit times, objects every 10 s, 5 questions, a weighted rubric.</li>
+        <li><b>Asked Gemini</b> about 300 frames (one per second) and every rubric item; a second model graded the answers.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>How it works</h2>
+      <div class="flow">
+        <div class="step"><div class="t">Hat</div><div class="s">stereo video, 30 fps</div></div>
+        <div class="arrow">→</div>
+        <div class="step"><div class="t">Mac</div><div class="s">USB download</div></div>
+        <div class="arrow">→</div>
+        <div class="step"><div class="t">Frames</div><div class="s">1 per second</div></div>
+        <div class="arrow">→</div>
+        <div class="step"><div class="t">Gemini</div><div class="s">who? how many? what?</div></div>
+        <div class="arrow">→</div>
+        <div class="step"><div class="t">Score</div><div class="s">vs. labels + rubric</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>What we found</h2>
+      <div class="finding"><div class="num">1</div><div><b>Finding people works.</b> Only 2 misses, both tiny figures far away. Head counts were never off by more than one.</div></div>
+      <div class="finding"><div class="num">2</div><div><b>Our labels are the weak link, not the model.</b> 30 frames scored as false alarms, but every one we checked shows a real person the labels missed: seated, far away, or seen early.</div></div>
+      <div class="finding"><div class="num">3</div><div><b>The rubric needs harder checks.</b> All 5 questions right (79 of 85 covered points). Distance needs calibrated cameras.</div></div>
+      <figure>
+        <img src="img/test-1-unlabeled-people.jpg" alt="Four zoomed frames showing people the labels missed">
+        <figcaption>People the model found that our labels missed. Left to right, top to bottom: 2:55, 3:45, 0:18, 4:16.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <div>
+    <section>
+      <h2>What's next</h2>
+      <div class="goal"><b>Goal:</b> track how construction work progresses, from walkthroughs filmed with the hat. Finding people is close to solved. Following the same person over time, and measuring the space, come next.</div>
+      <ul class="ladder">
+        <li><span class="chip done">Done</span><div><div class="t">Spot people and objects</div><div class="s">Per-frame detection and counts, scored against hand labels. Tooling is reusable for any new clip.</div></div></li>
+        <li><span class="chip next">This week</span><div><div class="t">Fix labels, compare models</div><div class="s">Review the 30 disputed frames, update the labels, and rescore (no API cost). Run a second Gemini model for comparison.</div></div></li>
+        <li><span class="chip next">Next</span><div><div class="t">Track individuals</div><div class="s">Score identity, not just presence: does each of the 32 people keep one ID from entry to exit? Our labels already hold each person's track. Then recognize the same person across clips and days. Agree on consent and privacy for workers first.</div></div></li>
+        <li><span class="chip later">Later</span><div><div class="t">Measure the space</div><div class="s">Calibrate the two cameras for real distances, and use stereo + IMU to tell where each frame was taken.</div></div></li>
+        <li><span class="chip later">Goal</span><div><div class="t">Track construction progress</div><div class="s">Walk the same site again and again, and compare visits area by area: what was installed, moved, or finished. Build a timeline for each zone.</div></div></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Decisions to make</h2>
+      <ul>
+        <li><b>Paid Gemini key?</b> Lifts the 20-requests-a-day limit, so frames go one per request and a stronger model can grade. Rough estimate: a dollar or two per full run.</li>
+        <li><b>Consent and privacy</b> rules before identifying individual workers on site.</li>
+        <li><b>Footage plan:</b> repeated walks of one real site, so progress can be measured over time.</li>
+      </ul>
+    </section>
+
+    <section>
+      <div class="limits"><b>Limits of this run.</b> One clip, one model. We ran on Gemini's free tier (20 requests per model per day), so frames went 25 per request and the stronger Pro model couldn't grade. The labels are incomplete, so precision (75% as scored) is understated.</div>
+    </section>
+  </div>
+</div>
+
+<footer>
+  <span>Code and data: branch <code>vlm-eval-test-1</code> &nbsp;·&nbsp; <code>eval/</code>, <code>data/test-1/</code></span>
+  <span>Full write-up: <code>eval/reports/2026-11-16-test-1.md</code></span>
+</footer>
+
+</body>
+</html>
